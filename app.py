@@ -25,11 +25,12 @@ def fetch_stock_data(ticker, days):
     if "Close" not in df or "Volume" not in df:
         return None
     df["Return"] = df["Close"].pct_change()
-    df = df[["Return", "Volume"]].dropna()
+    df = df[["Return", "Volume"]].dropna().copy()
     df["Ticker"] = ticker
+    df.reset_index(drop=True, inplace=True)
     return df
 
-# --- Collect all data ---
+# --- Collect and combine data ---
 all_data = []
 
 for ticker in tickers:
@@ -37,15 +38,16 @@ for ticker in tickers:
     if df is not None and not df.empty:
         all_data.append(df)
 
-# --- Combine and cluster ---
 if all_data:
-    data = pd.concat(all_data)
+    data = pd.concat(all_data, ignore_index=True)
+    data = data[["Return", "Volume", "Ticker"]]  # Ensure clean columns
+
     kmeans = KMeans(n_clusters=num_clusters, random_state=42)
     data["Cluster"] = kmeans.fit_predict(data[["Return", "Volume"]])
 
     # --- Cluster Summary ---
     st.subheader("📈 Cluster Summary Stats (All Stocks Combined)")
-    cluster_stats = data.groupby("Cluster")[["Return", "Volume"]].mean()
+    cluster_stats = data[["Cluster", "Return", "Volume"]].groupby("Cluster").mean()
     st.dataframe(cluster_stats.round(4))
 
     # --- Cluster Distribution per Stock ---
@@ -56,7 +58,16 @@ if all_data:
     # --- Combined Cluster Plot ---
     st.subheader("🌐 Combined Cluster Scatter Plot")
     fig_combined, ax_combined = plt.subplots(figsize=(10, 6))
-    sns.scatterplot(data=data, x="Return", y="Volume", hue="Cluster", palette="viridis", style="Ticker", s=30, ax=ax_combined)
+    sns.scatterplot(
+        data=data,
+        x="Return",
+        y="Volume",
+        hue="Cluster",
+        style="Ticker",
+        palette="viridis",
+        s=30,
+        ax=ax_combined
+    )
     ax_combined.set_title("Return vs Volume Clusters (All Stocks)")
     st.pyplot(fig_combined)
 
@@ -69,7 +80,16 @@ if all_data:
             st.markdown(f"**{ticker}**")
             df = data[data["Ticker"] == ticker]
             fig, ax = plt.subplots(figsize=(4, 4))
-            sns.scatterplot(data=df, x="Return", y="Volume", hue="Cluster", palette="viridis", s=15, ax=ax, legend=False)
+            sns.scatterplot(
+                data=df,
+                x="Return",
+                y="Volume",
+                hue="Cluster",
+                palette="viridis",
+                s=15,
+                ax=ax,
+                legend=False
+            )
             ax.set_title(f"{ticker}")
             st.pyplot(fig)
 else:
