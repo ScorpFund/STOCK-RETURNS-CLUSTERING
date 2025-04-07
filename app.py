@@ -1,38 +1,57 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score
+import matplotlib.pyplot as plt
+import seaborn as sns
+from datetime import datetime, timedelta
 
-st.title("📊 Return-Volume Cluster Visualizer")
+st.set_page_config(page_title="📈 Multi-Stock Cluster Visualizer", layout="wide")
 
-ticker = st.sidebar.text_input("Enter Ticker Symbol", value="AAPL")
-n_clusters = st.sidebar.slider("Number of Clusters", min_value=2, max_value=10, value=4)
+st.title("📊 Multi-Stock Return-Volume Cluster Visualizer")
 
-@st.cache_data
-def load_data(ticker):
-    df = yf.download(ticker, period="1y")
-    df["Return"] = df["Close"].pct_change()
-    return df.dropna()
+tickers = st.text_input("Enter up to 5 stock tickers (comma-separated)", "MSFT,AAPL,GOOGL,AMZN,TSLA")
+num_days = st.number_input("How many past days of data to fetch?", min_value=30, max_value=1000, value=365)
+max_clusters = st.slider("Max Clusters (Auto detects best k)", min_value=2, max_value=10, value=5)
 
-df = load_data(ticker)
+ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()][:5]
+end_date = datetime.today()
+start_date = end_date - timedelta(days=int(num_days))
 
-X = df[["Return", "Volume"]].copy()
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+def get_cluster_suggestion(X, max_k=10):
+    best_k = 2
+    best_score = -1
+    for k in range(2, max_k+1):
+        kmeans = KMeans(n_clusters=k, random_state=42).fit(X)
+        score = silhouette_score(X, kmeans.labels_)
+        if score > best_score:
+            best_score = score
+            best_k = k
+    return best_k
 
-kmeans = KMeans(n_clusters=n_clusters, random_state=0)
-df["Cluster"] = kmeans.fit_predict(X_scaled)
+for ticker in ticker_list:
+    st.subheader(f"📌 {ticker}")
+    df = yf.download(ticker, start=start_date, end=end_date)
+    df["Return"] = df["Adj Close"].pct_change()
+    df = df.dropna()
+    df["Volume"] = df["Volume"].astype(float)
+    X = df[["Return", "Volume"]]
 
-fig, ax = plt.subplots(figsize=(10, 6))
-scatter = ax.scatter(df["Volume"], df["Return"], c=df["Cluster"], cmap="tab10", alpha=0.7)
-ax.set_xlabel("Volume")
-ax.set_ylabel("Daily Return")
-ax.set_title(f"{ticker} Return vs Volume Clusters")
-ax.grid(True)
+    suggested_k = get_cluster_suggestion(X, max_k=max_clusters)
+    st.write(f"Suggested clusters: {suggested_k}")
 
-st.pyplot(fig)
+    kmeans = KMeans(n_clusters=suggested_k, random_state=42).fit(X)
+    df["Cluster"] = kmeans.labels_
 
-if st.checkbox("Show raw data"):
-    st.dataframe(df)
+    fig, ax = plt.subplots()
+    sns.scatterplot(data=df, x="Volume", y="Return", hue="Cluster", palette="tab10", ax=ax)
+    ax.set_title(f"{ticker} Return vs Volume Clusters")
+    st.pyplot(fig)
+
+    with st.expander("📈 Cluster Insights"):
+        cluster_insights = df.groupby("Cluster").agg({
+            "Return": ["mean", "count"],
+            "Volume": "mean"
+        }).round(4)
+        st.dataframe(cluster_insights)
