@@ -38,8 +38,8 @@ for ticker in ticker_list:
 if isinstance(df.columns, pd.MultiIndex):
     df = df[ticker]  # select the data for the specific ticker
 
-df["Return"] = df["Adj Close"].pct_change()
-df = df.dropna()
+    df["Return"] = df["Adj Close"].pct_change()
+    df = df.dropna()
     df["Volume"] = df["Volume"].astype(float)
     X = df[["Return", "Volume"]]
 
