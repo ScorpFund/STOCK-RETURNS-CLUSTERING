@@ -34,7 +34,7 @@ for ticker in ticker_list:
     st.subheader(f"📌 {ticker}")
     df = yf.download(ticker, start=start_date, end=end_date)
     if isinstance(df.columns, pd.MultiIndex):
-    df.columns = df.columns.get_level_values(1)
+        df.columns = df.columns.get_level_values(1)
     df["Return"] = df["Adj Close"].pct_change()
     df = df.dropna()
     df["Volume"] = df["Volume"].astype(float)
