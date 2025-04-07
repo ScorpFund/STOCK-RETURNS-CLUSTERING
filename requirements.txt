@@ -1,7 +1,6 @@
 streamlit
 yfinance
-scikit-learn
-matplotlib
-seaborn
 pandas
-imageio
+scikit-learn
+sentence-transformers
+faiss-cpu
