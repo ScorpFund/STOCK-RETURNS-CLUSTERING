@@ -32,11 +32,14 @@ def get_cluster_suggestion(X, max_k=10):
 
 for ticker in ticker_list:
     st.subheader(f"📌 {ticker}")
-    df = yf.download(ticker, start=start_date, end=end_date)
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(1)
-    df["Return"] = df["Adj Close"].pct_change()
-    df = df.dropna()
+    df = yf.download(ticker, start=start_date, end=end_date, group_by='ticker', auto_adjust=True)
+
+# If the result is MultiIndex and has the ticker as column level
+if isinstance(df.columns, pd.MultiIndex):
+    df = df[ticker]  # select the data for the specific ticker
+
+df["Return"] = df["Adj Close"].pct_change()
+df = df.dropna()
     df["Volume"] = df["Volume"].astype(float)
     X = df[["Return", "Volume"]]
 
