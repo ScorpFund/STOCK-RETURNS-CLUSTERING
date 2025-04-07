@@ -47,7 +47,7 @@ else:
         kmeans = KMeans(n_clusters=3, random_state=42)
         sub_df["Cluster"] = kmeans.fit_predict(sub_df[["Return", "Volume"]])
 
-        fig, ax = plt.subplots(figsize=(2.5, 2.5))
+        fig, ax = plt.subplots(figsize=(3, 3))
         ax.scatter(sub_df["Return"], sub_df["Volume"], c=sub_df["Cluster"], cmap="viridis", s=20)
         ax.set_title(f"{selected_ticker} Clustering - Day {i}")
         ax.set_xlabel("Return")
@@ -63,4 +63,4 @@ else:
     imageio.mimsave(gif_path, frames, duration=0.3)  # duration per frame
 
     # --- Display GIF ---
-    st.image(gif_path, caption=f"{selected_ticker} clustering over {days} days", use_column_width=300)
+    st.image(gif_path, caption=f"{selected_ticker} clustering over {days} days", use_container_width=500)
