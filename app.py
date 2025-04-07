@@ -5,71 +5,40 @@ from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 
 st.set_page_config(layout="wide")
-st.title("📊 Multi-Stock Return & Volume Clustering")
+st.title("📊 Stock Return-Volume Clustering")
 
 # --- Inputs ---
-tickers = st.text_input(
-    "Enter up to 5 stock tickers (comma-separated):", 
-    value="AAPL, MSFT, TSLA, GOOGL, AMZN"
-)
+tickers = st.text_input("Enter 5 stock tickers separated by commas (e.g., AAPL, MSFT, TSLA, GOOGL, AMZN)", value="AAPL, MSFT, TSLA, GOOGL, AMZN")
 tickers = [t.strip().upper() for t in tickers.split(",")][:5]
 
-days = st.slider("Select number of days to fetch historical data", 30, 365, 180, 15)
-n_clusters = st.slider("Select number of clusters", 2, 10, 4)
+days = st.slider("Number of days of historical data to fetch", min_value=30, max_value=365, value=180, step=15)
 
-# --- Fetch data for each stock ---
+# --- Function to fetch and prepare data ---
 def fetch_stock_data(ticker, days):
     df = yf.download(ticker, period=f"{days}d", auto_adjust=True)
-    if df.empty or "Close" not in df or "Volume" not in df:
+    if "Close" not in df or "Volume" not in df:
         return None
     df["Return"] = df["Close"].pct_change()
     df = df[["Return", "Volume"]].dropna()
-    df["Ticker"] = ticker
     return df
 
-all_data = []
+# --- Clustering and Plotting ---
+cols = st.columns(len(tickers))
 
-for ticker in tickers:
-    df = fetch_stock_data(ticker, days)
-    if df is not None and not df.empty:
-        all_data.append(df)
-    else:
-        st.warning(f"⚠️ No data for {ticker}")
+for i, ticker in enumerate(tickers):
+    with cols[i]:
+        st.subheader(ticker)
+        df = fetch_stock_data(ticker, days)
+        if df is None or df.empty:
+            st.warning(f"Data not available for {ticker}")
+            continue
 
-# --- Combine and cluster ---
-if all_data:
-    combined_df = pd.concat(all_data)
-    combined_df = combined_df.dropna()
+        kmeans = KMeans(n_clusters=3, random_state=42)
+        df["Cluster"] = kmeans.fit_predict(df[["Return", "Volume"]])
 
-    if len(combined_df) >= n_clusters:
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-        combined_df["Cluster"] = kmeans.fit_predict(combined_df[["Return", "Volume"]])
-
-        # Plot combined clusters
-        fig, ax = plt.subplots(figsize=(10, 6))
-        scatter = ax.scatter(
-            combined_df["Return"], 
-            combined_df["Volume"], 
-            c=combined_df["Cluster"], 
-            cmap="tab10", 
-            s=10,
-            alpha=0.8
-        )
-        ax.set_title("Clustered Return vs Volume (All Stocks)")
+        fig, ax = plt.subplots(figsize=(4, 4))
+        scatter = ax.scatter(df["Return"], df["Volume"], c=df["Cluster"], cmap="viridis", s=10)
         ax.set_xlabel("1-Day Return")
         ax.set_ylabel("Volume")
-        ax.grid(True)
+        ax.set_title(f"{ticker} Clusters")
         st.pyplot(fig)
-
-        # Summary table
-        st.markdown("### 📊 Cluster Summary")
-        summary = combined_df.groupby("Cluster").agg(
-            Count=("Return", "count"),
-            Avg_Return=("Return", "mean"),
-            Avg_Volume=("Volume", "mean")
-        ).round(4)
-        st.dataframe(summary)
-    else:
-        st.error("❌ Not enough data to form clusters. Try reducing cluster count or fetching more days.")
-else:
-    st.error("❌ No data available for selected tickers.")
