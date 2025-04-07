@@ -28,7 +28,7 @@ tickers = selected_from_dropdown if selected_from_dropdown else manual_tickers
 tickers = tickers[:5]
 
 # Days of data
-days = st.slider("Number of days of historical data to fetch", min_value=30, max_value=365, value=180, step=15)
+days = st.slider("Number of days of historical data to fetch", min_value=30, max_value=3650, value=150, step=244)
 
 # --- Function to fetch and prepare data ---
 def fetch_stock_data(ticker, days):
